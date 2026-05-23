@@ -73,63 +73,189 @@ If you haven't received your screen yet but want to start developing your theme 
 
 ### Claude Code usage theme
 
-A dedicated theme (`ClaudeCode`) that displays your Claude Code plan consumption in real time on the smart screen:
+A dedicated theme (`ClaudeCode`) that displays your Claude Code plan consumption in real time on the smart screen. Switch between your usual system monitor and the Claude usage view with a keyboard shortcut.
 
-| Metric | Description |
-|--------|-------------|
-| **5-Hour Window** | Current utilization % with progress bar and reset time |
-| **Weekly Usage** | 7-day utilization % with progress bar and reset date |
-| **Sonnet** | Sonnet model usage % |
-| **Extra Credits** | Spent amount in EUR |
+<img src="res/docs/system-monitor-theme.png" height="350" /> <img src="res/docs/claude-code-theme.png" height="350" />
 
-Data is fetched from the Claude API using your local OAuth credentials (`~/.claude/.credentials.json`), with a 30-second cache to avoid excessive API calls.
+*Left: System Monitor (default) | Right: Claude Code Usage*
+
+#### Displayed metrics
+
+| Metric | Source | Display |
+|--------|--------|---------|
+| **5-Hour Window** | `five_hour.utilization` | Large percentage + orange progress bar + reset time (e.g. `Reset 19:30`) |
+| **Weekly Usage** | `seven_day.utilization` | Large percentage + blue progress bar + reset date (e.g. `Reset Tue 26`) |
+| **Sonnet** | `seven_day_sonnet.utilization` | Percentage + purple progress bar |
+| **Extra Credits** | `extra_usage.used_credits` | Spent amount in EUR (converted from cents) |
+| **Date / Time** | System clock | Displayed at the bottom |
+
+Data is fetched from the Claude API endpoint (`/api/oauth/usage`) using your local OAuth credentials (`~/.claude/.credentials.json`). A shared cache (`_ClaudeUsageCache`) ensures the API is called at most once every 30 seconds, regardless of how many sensors read from it.
+
+#### Custom data sources
+
+All Claude sensors are implemented in `library/sensors/sensors_custom.py` as standard `CustomDataSource` subclasses, fully compatible with the theme engine:
+
+| Class | Type | Value |
+|-------|------|-------|
+| `ClaudeFiveHourUsage` | numeric + history | 5h utilization % (0-100) |
+| `ClaudeFiveHourReset` | text only | Reset time (`Reset HH:MM`) |
+| `ClaudeWeeklyUsage` | numeric + history | 7-day utilization % (0-100) |
+| `ClaudeWeeklyReset` | text only | Reset date (`Reset Mon DD`) |
+| `ClaudeSonnetUsage` | numeric | Sonnet 7-day utilization % |
+| `ClaudeExtraUsage` | numeric | Extra credits spent (EUR) |
+
+You can reuse these classes in any other theme by referencing them in `theme.yaml` under `STATS > CUSTOM`.
+
+#### Credentials
+
+The credentials path is resolved in this order:
+1. `CLAUDE_CREDENTIALS` environment variable (if set)
+2. `~/.claude/.credentials.json` (default)
+
+This is important when running as a systemd service (where `~` resolves to `/root`). The provided `start.sh` auto-detects the first non-root user's home directory.
+
+---
 
 ### Multi-screen manager
 
-Instead of running `main.py` directly, use `multiscreen.py` to switch between multiple screen layouts with keyboard shortcuts:
+The multi-screen manager (`multiscreen.py`) replaces `main.py` as the main entry point. It manages an **array of screens** and lets you cycle through them with configurable keyboard shortcuts.
 
 ```bash
 python3 multiscreen.py
 ```
 
-Configuration is done in `multiscreen.yaml`:
+```
+[multiscreen] Turing Smart Screen - Multi-screen Manager
+[multiscreen] 2 screen(s) configured:
+  [0] System Monitor (theme: 3.5inchTheme2)
+  [1] Claude Code Usage (theme: ClaudeCode)
+
+[multiscreen] Keybindings:
+  next: ctrl + shift + end
+  prev: ctrl + shift + home
+
+[multiscreen] CTRL+C to exit
+[multiscreen] Started: System Monitor (PID 12345)
+```
+
+#### Configuration: `multiscreen.yaml`
+
+All screens and keybindings are defined in a single YAML file. Nothing is hardcoded.
 
 ```yaml
+# Add as many screens as you want
 screens:
   - name: "System Monitor"
     theme: "3.5inchTheme2"
+
   - name: "Claude Code Usage"
     theme: "ClaudeCode"
 
+  # - name: "My Custom Theme"
+  #   theme: "MyThemeFolder"
+
+# All keybindings are configurable
 keybindings:
-  next: "ctrl + shift + end"
-  prev: "ctrl + shift + home"
-  # screen_0: "ctrl + shift + f1"   # jump directly to a screen by index
+  next: "ctrl + shift + end"       # Next screen in the list
+  prev: "ctrl + shift + home"      # Previous screen in the list
+  # screen_0: "ctrl + shift + f1"  # Jump directly to screen index 0
+  # screen_1: "ctrl + shift + f2"  # Jump directly to screen index 1
 ```
 
-- **`screens`**: array of views, each with a `name` and a `theme` folder name. Add as many as you want.
-- **`keybindings`**: configurable shortcuts. Available actions: `next`, `prev`, `screen_N` (0-based index).
-- Modifier keys: `ctrl`, `shift`, `alt`. Special keys: `home`, `end`, `f1`-`f12`, `page_up`, `page_down`, etc.
+#### Keybinding reference
 
-### systemd service
+| Action | Description |
+|--------|-------------|
+| `next` | Switch to the next screen (wraps around) |
+| `prev` | Switch to the previous screen (wraps around) |
+| `screen_N` | Jump directly to screen at index N (0-based) |
 
-To run at boot with multi-screen support, use the provided `start.sh`:
+**Available keys for combos:**
+
+| Category | Keys |
+|----------|------|
+| Modifiers | `ctrl`, `shift`, `alt` |
+| Navigation | `home`, `end`, `page_up`, `page_down`, `up`, `down`, `left`, `right` |
+| Function | `f1` - `f12` |
+| Special | `space`, `tab`, `enter`, `esc`, `insert`, `delete` |
+| Characters | Any single character (`a`, `b`, `1`, `2`, etc.) |
+
+Combos are written with `+` separators: `"ctrl + shift + f1"`, `"alt + home"`, etc.
+
+#### How it works
+
+When you press a hotkey, the manager:
+1. Sends `SIGTERM` to the currently running `main.py` process
+2. Updates the `THEME` value in `config.yaml` (preserving comments)
+3. Launches a new `main.py` process with the new theme
+
+The switch takes about 1-2 seconds. If the monitor process crashes, the manager auto-restarts it.
+
+---
+
+### Running at boot (systemd)
+
+A `start.sh` script is provided that handles venv activation, serial port permissions, and credential path detection.
+
+#### Service file
 
 ```ini
 # /etc/systemd/system/turing-smart-screen.service
+[Unit]
+Description=Turing Smart Screen - Multi-screen Manager
+After=network.target graphical.target
+Wants=graphical.target
+
 [Service]
+Type=simple
+WorkingDirectory=/path/to/smart-screen-python-claude
 ExecStart=/bin/bash /path/to/smart-screen-python-claude/start.sh
+Restart=always
+User=root
+Group=root
+Environment="PYTHONUNBUFFERED=1"
 Environment="DISPLAY=:1"
 Environment="XAUTHORITY=/run/user/1000/gdm/Xauthority"
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-The `DISPLAY` and `XAUTHORITY` variables are required for `pynput` to capture keyboard shortcuts from within a systemd service.
+> **Important:** The `DISPLAY` and `XAUTHORITY` environment variables are required for `pynput` to capture keyboard shortcuts from within a systemd service. Adjust the `DISPLAY` value (`:0`, `:1`, etc.) and `XAUTHORITY` path to match your system (`echo $DISPLAY` and `echo $XAUTHORITY` in a terminal).
 
-### Additional dependency
+#### Commands
 
 ```bash
-pip install pynput
+sudo systemctl daemon-reload
+sudo systemctl enable turing-smart-screen.service   # start at boot
+sudo systemctl start turing-smart-screen.service     # start now
+sudo systemctl status turing-smart-screen.service    # check status
+journalctl -u turing-smart-screen.service -f         # follow logs
 ```
+
+---
+
+### Additional dependencies
+
+On top of the base project requirements:
+
+```bash
+pip install pynput requests
+```
+
+---
+
+### Files changed from upstream
+
+| File | Change |
+|------|--------|
+| `library/sensors/sensors_custom.py` | Added 6 Claude usage sensor classes + shared API cache |
+| `res/themes/ClaudeCode/` | New theme (background image + `theme.yaml`) |
+| `multiscreen.py` | New multi-screen manager with hotkey support |
+| `multiscreen.yaml` | New configurable screens array and keybindings |
+| `start.sh` | New launcher script for systemd with credential detection |
+| `generate_background.py` | Script to regenerate the Claude theme background |
+| `config.yaml` | `DISPLAY_REVERSE: true` (hardware-specific) |
 
 ---
 
