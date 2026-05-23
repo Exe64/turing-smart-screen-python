@@ -1,4 +1,10 @@
-# ![Icon](https://raw.githubusercontent.com/mathoudebine/turing-smart-screen-python/main/res/icons/monitor-icon-17865/24.png) turing-smart-screen-python
+# ![Icon](https://raw.githubusercontent.com/mathoudebine/turing-smart-screen-python/main/res/icons/monitor-icon-17865/24.png) turing-smart-screen-python (fork with Claude Code usage monitor)
+
+> [!NOTE]
+> 
+> This is a **fork** of [mathoudebine/turing-smart-screen-python](https://github.com/mathoudebine/turing-smart-screen-python) with added features:
+> - **Claude Code usage monitor** theme displaying real-time API consumption (5h window, weekly, Sonnet, extra credits)
+> - **Multi-screen manager** to switch between views with configurable keyboard shortcuts
 
 > [!WARNING]
 > 
@@ -62,6 +68,70 @@ Supported operating systems : macOS, Windows, Linux (incl. Raspberry Pi), basica
 This project offers an abstraction layer to manage all of these products in a unified way, including some product-specific features like backplate RGB LEDs for available models!
 
 If you haven't received your screen yet but want to start developing your theme now, you can use the [**"simulated LCD" mode!**](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Simulated-display)
+
+## Fork additions
+
+### Claude Code usage theme
+
+A dedicated theme (`ClaudeCode`) that displays your Claude Code plan consumption in real time on the smart screen:
+
+| Metric | Description |
+|--------|-------------|
+| **5-Hour Window** | Current utilization % with progress bar and reset time |
+| **Weekly Usage** | 7-day utilization % with progress bar and reset date |
+| **Sonnet** | Sonnet model usage % |
+| **Extra Credits** | Spent amount in EUR |
+
+Data is fetched from the Claude API using your local OAuth credentials (`~/.claude/.credentials.json`), with a 30-second cache to avoid excessive API calls.
+
+### Multi-screen manager
+
+Instead of running `main.py` directly, use `multiscreen.py` to switch between multiple screen layouts with keyboard shortcuts:
+
+```bash
+python3 multiscreen.py
+```
+
+Configuration is done in `multiscreen.yaml`:
+
+```yaml
+screens:
+  - name: "System Monitor"
+    theme: "3.5inchTheme2"
+  - name: "Claude Code Usage"
+    theme: "ClaudeCode"
+
+keybindings:
+  next: "ctrl + shift + end"
+  prev: "ctrl + shift + home"
+  # screen_0: "ctrl + shift + f1"   # jump directly to a screen by index
+```
+
+- **`screens`**: array of views, each with a `name` and a `theme` folder name. Add as many as you want.
+- **`keybindings`**: configurable shortcuts. Available actions: `next`, `prev`, `screen_N` (0-based index).
+- Modifier keys: `ctrl`, `shift`, `alt`. Special keys: `home`, `end`, `f1`-`f12`, `page_up`, `page_down`, etc.
+
+### systemd service
+
+To run at boot with multi-screen support, use the provided `start.sh`:
+
+```ini
+# /etc/systemd/system/turing-smart-screen.service
+[Service]
+ExecStart=/bin/bash /path/to/smart-screen-python-claude/start.sh
+Environment="DISPLAY=:1"
+Environment="XAUTHORITY=/run/user/1000/gdm/Xauthority"
+```
+
+The `DISPLAY` and `XAUTHORITY` variables are required for `pynput` to capture keyboard shortcuts from within a systemd service.
+
+### Additional dependency
+
+```bash
+pip install pynput
+```
+
+---
 
 ## How to start
 
