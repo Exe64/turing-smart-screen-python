@@ -1,0 +1,26 @@
+# Multi-screen configuration
+# Define your screens and keybindings here
+
+screens:
+  - name: "System Monitor"
+    theme: "3.5inchTheme2"
+
+  - name: "Claude Code Usage"
+    theme: "ClaudeCode"
+
+# Keybindings use "+" to separate keys
+# Available modifiers: ctrl, shift, alt
+# Available keys: home, end, page_up, page_down, insert, delete,
+#   f1-f12, up, down, left, right, space, tab, enter, esc,
+#   or any single character (a, b, 1, 2, etc.)
+#
+# Actions:
+#   next      - switch to the next screen in the list
+#   prev      - switch to the previous screen in the list
+#   screen_N  - switch directly to screen at index N (0-based)
+
+keybindings:
+  next: "ctrl + shift + end"
+  prev: "ctrl + shift + home"
+  # screen_0: "ctrl + shift + f1"
+  # screen_1: "ctrl + shift + f2"

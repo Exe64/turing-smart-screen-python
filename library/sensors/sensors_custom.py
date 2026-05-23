@@ -22,10 +22,54 @@
 # There is no limitation on how much custom data source classes can be added to this file
 # See CustomDataExample theme for the theme implementation part
 
+import json
+import logging
 import math
+import os
 import platform
+import time
 from abc import ABC, abstractmethod
-from typing import List
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+
+import requests
+
+logger = logging.getLogger(__name__)
+
+CREDENTIALS_PATH = Path(os.environ.get("CLAUDE_CREDENTIALS", Path.home() / ".claude" / ".credentials.json"))
+USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage"
+
+
+class _ClaudeUsageCache:
+    """Shared cache for Claude API usage data, refreshed at most every 30 seconds."""
+
+    _data: Optional[dict] = None
+    _last_fetch: float = 0
+    _ttl: float = 30
+
+    @classmethod
+    def get(cls) -> Optional[dict]:
+        now = time.time()
+        if cls._data is not None and (now - cls._last_fetch) < cls._ttl:
+            return cls._data
+        try:
+            with open(CREDENTIALS_PATH) as f:
+                creds = json.load(f)
+            token = creds["claudeAiOauth"]["accessToken"]
+            resp = requests.get(
+                USAGE_API_URL,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            cls._data = resp.json()
+            cls._last_fetch = now
+        except Exception as e:
+            logger.warning("Failed to fetch Claude usage: %s", e)
+            if cls._data is None:
+                cls._data = {}
+        return cls._data
 
 
 # Custom data classes must be implemented in this file, inherit the CustomDataSource and implement its 2 methods
@@ -98,4 +142,120 @@ class ExampleCustomTextOnlyData(CustomDataSource):
 
     def last_values(self) -> List[float]:
         # If a custom data class only has text values, it won't be possible to display line graph
+        pass
+
+
+class ClaudeFiveHourUsage(CustomDataSource):
+    last_val = [math.nan] * 20
+
+    def as_numeric(self) -> float:
+        data = _ClaudeUsageCache.get()
+        self.value = 0.0
+        self.resets_at = ""
+        if data and "five_hour" in data and data["five_hour"]:
+            self.value = float(data["five_hour"].get("utilization", 0) or 0)
+            raw_reset = data["five_hour"].get("resets_at", "")
+            if raw_reset:
+                try:
+                    dt = datetime.fromisoformat(raw_reset)
+                    self.resets_at = dt.strftime("%H:%M")
+                except Exception:
+                    self.resets_at = ""
+        self.last_val.append(self.value)
+        self.last_val.pop(0)
+        return self.value
+
+    def as_string(self) -> str:
+        return f'{self.value:>5.1f}%'
+
+    def last_values(self) -> List[float]:
+        return self.last_val
+
+
+class ClaudeFiveHourReset(CustomDataSource):
+    def as_numeric(self) -> float:
+        pass
+
+    def as_string(self) -> str:
+        data = _ClaudeUsageCache.get()
+        if data and "five_hour" in data and data["five_hour"]:
+            raw = data["five_hour"].get("resets_at", "")
+            if raw:
+                try:
+                    dt = datetime.fromisoformat(raw)
+                    return f'Reset {dt.strftime("%H:%M")}'
+                except Exception:
+                    pass
+        return ""
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class ClaudeWeeklyUsage(CustomDataSource):
+    last_val = [math.nan] * 20
+
+    def as_numeric(self) -> float:
+        data = _ClaudeUsageCache.get()
+        self.value = 0.0
+        if data and "seven_day" in data and data["seven_day"]:
+            self.value = float(data["seven_day"].get("utilization", 0) or 0)
+        self.last_val.append(self.value)
+        self.last_val.pop(0)
+        return self.value
+
+    def as_string(self) -> str:
+        return f'{self.value:>5.1f}%'
+
+    def last_values(self) -> List[float]:
+        return self.last_val
+
+
+class ClaudeWeeklyReset(CustomDataSource):
+    def as_numeric(self) -> float:
+        pass
+
+    def as_string(self) -> str:
+        data = _ClaudeUsageCache.get()
+        if data and "seven_day" in data and data["seven_day"]:
+            raw = data["seven_day"].get("resets_at", "")
+            if raw:
+                try:
+                    dt = datetime.fromisoformat(raw)
+                    return f'Reset {dt.strftime("%a %d")}'
+                except Exception:
+                    pass
+        return ""
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class ClaudeSonnetUsage(CustomDataSource):
+    def as_numeric(self) -> float:
+        data = _ClaudeUsageCache.get()
+        self.value = 0.0
+        if data and "seven_day_sonnet" in data and data["seven_day_sonnet"]:
+            self.value = float(data["seven_day_sonnet"].get("utilization", 0) or 0)
+        return self.value
+
+    def as_string(self) -> str:
+        return f'{self.value:>5.1f}%'
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class ClaudeExtraUsage(CustomDataSource):
+    def as_numeric(self) -> float:
+        data = _ClaudeUsageCache.get()
+        self.value = 0.0
+        if data and "extra_usage" in data and data["extra_usage"]:
+            self.value = float(data["extra_usage"].get("used_credits", 0) or 0)
+        return self.value
+
+    def as_string(self) -> str:
+        return f'{self.value:>7.1f} EUR'
+
+    def last_values(self) -> List[float]:
         pass

@@ -1,0 +1,148 @@
+---
+author: "Claude Code Monitor"
+
+display:
+  DISPLAY_ORIENTATION: portrait
+  DISPLAY_RGB_LED: 217, 119, 52
+
+static_images:
+  BACKGROUND:
+    PATH: background.png
+    X: 0
+    Y: 0
+    WIDTH: 320
+    HEIGHT: 480
+
+STATS:
+  CUSTOM:
+    INTERVAL: 30
+
+    ClaudeFiveHourUsage:
+      TEXT:
+        SHOW: True
+        X: 20
+        Y: 102
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 36
+        FONT_COLOR: 217, 119, 52
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 180
+        HEIGHT: 44
+      GRAPH:
+        SHOW: True
+        X: 21
+        Y: 163
+        WIDTH: 278
+        HEIGHT: 18
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 217, 119, 52
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 20, 22, 30
+
+    ClaudeFiveHourReset:
+      TEXT:
+        SHOW: True
+        X: 20
+        Y: 142
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 12
+        FONT_COLOR: 120, 125, 140
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 160
+        HEIGHT: 16
+
+    ClaudeWeeklyUsage:
+      TEXT:
+        SHOW: True
+        X: 20
+        Y: 232
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 36
+        FONT_COLOR: 100, 140, 220
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 180
+        HEIGHT: 44
+      GRAPH:
+        SHOW: True
+        X: 21
+        Y: 293
+        WIDTH: 278
+        HEIGHT: 18
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 100, 140, 220
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 20, 22, 30
+
+    ClaudeWeeklyReset:
+      TEXT:
+        SHOW: True
+        X: 20
+        Y: 272
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 12
+        FONT_COLOR: 120, 125, 140
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 160
+        HEIGHT: 16
+
+    ClaudeSonnetUsage:
+      TEXT:
+        SHOW: True
+        X: 24
+        Y: 362
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 26
+        FONT_COLOR: 180, 140, 255
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 120
+        HEIGHT: 34
+      GRAPH:
+        SHOW: True
+        X: 18
+        Y: 400
+        WIDTH: 126
+        HEIGHT: 10
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 180, 140, 255
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 20, 22, 30
+
+    ClaudeExtraUsage:
+      TEXT:
+        SHOW: True
+        X: 172
+        Y: 362
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 18
+        FONT_COLOR: 80, 200, 120
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 132
+        HEIGHT: 50
+
+  DATE:
+    INTERVAL: 60
+    DAY:
+      TEXT:
+        SHOW: True
+        X: 100
+        Y: 446
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 13
+        FONT_COLOR: 120, 125, 140
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 120
+        HEIGHT: 18
+    HOUR:
+      TEXT:
+        SHOW: True
+        X: 220
+        Y: 446
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 13
+        FONT_COLOR: 200, 200, 200
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 80
+        HEIGHT: 18
