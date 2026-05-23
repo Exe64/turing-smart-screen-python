@@ -251,11 +251,12 @@ class ClaudeExtraUsage(CustomDataSource):
         data = _ClaudeUsageCache.get()
         self.value = 0.0
         if data and "extra_usage" in data and data["extra_usage"]:
-            self.value = float(data["extra_usage"].get("used_credits", 0) or 0)
+            cents = float(data["extra_usage"].get("used_credits", 0) or 0)
+            self.value = cents / 100.0
         return self.value
 
     def as_string(self) -> str:
-        return f'{self.value:>7.1f} EUR'
+        return f'{self.value:>6.2f} EUR'
 
     def last_values(self) -> List[float]:
         pass
