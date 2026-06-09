@@ -80,6 +80,7 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
 | `install-deps.bat` | Installe les dépendances (`requirements.txt` + `pynput`) |
 | `start.bat` | Lance le programme **avec** console (test / débogage) |
 | `check-claude.bat` | Diagnostic de l'écran Claude (pourquoi il est vide) |
+| `keytest.bat` | Testeur de touches (voir ce qu'envoie le clavier / les G-keys) |
 | `run-hidden.vbs` | Lance le programme **sans** fenêtre (utilisé par l'autostart) |
 | `install-autostart-admin.ps1` | **(A)** Tâche planifiée au logon, droits admin |
 | `uninstall-autostart-admin.ps1` | Supprime la tâche planifiée |
@@ -109,6 +110,15 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
   Windows, puis `CLAUDE_CODE_OAUTH_TOKEN` (en dernier recours).
 - **Écran par défaut** : c'est le **premier** de la liste `screens:` dans
   `multiscreen.yaml`. Réordonnez la liste pour changer celui affiché au démarrage.
+- **Raccourcis / clavier Logitech G915 (touches G1–G5)** : les G-keys ne sont pas
+  des touches clavier standard ; elles sont gérées par **Logitech G HUB** et
+  n'envoient rien par défaut. Pour les utiliser :
+  1. dans **G HUB**, assignez chaque G-key à une **frappe clavier** `F13`, `F14`,
+     `F15`… (ces touches existent dans la norme mais n'ont pas d'équivalent
+     physique → aucune collision) ;
+  2. dans `multiscreen.yaml`, bindez `screen_0: "f13"`, `screen_1: "f14"`, etc.
+  Utilisez `windows\keytest.bat` pour voir ce que vos touches envoient réellement
+  (et vérifier que l'écoute des raccourcis fonctionne).
 - **Écrans personnalisés** : ajoutez vos écrans et raccourcis clavier dans
   `multiscreen.yaml` (voir les commentaires dans ce fichier).
 - Le dossier *Démarrage* est accessible via `Win + R` → `shell:startup`.

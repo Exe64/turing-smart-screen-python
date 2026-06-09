@@ -95,6 +95,14 @@ KEY_MAP = {
     "f10": keyboard.Key.f10,
     "f11": keyboard.Key.f11,
     "f12": keyboard.Key.f12,
+    "f13": keyboard.Key.f13,
+    "f14": keyboard.Key.f14,
+    "f15": keyboard.Key.f15,
+    "f16": keyboard.Key.f16,
+    "f17": keyboard.Key.f17,
+    "f18": keyboard.Key.f18,
+    "f19": keyboard.Key.f19,
+    "f20": keyboard.Key.f20,
     "up": keyboard.Key.up,
     "down": keyboard.Key.down,
     "left": keyboard.Key.left,
@@ -184,6 +192,7 @@ def on_press(key):
 
     for action, combo in keybindings.items():
         if combo.issubset(current):
+            print(f"[multiscreen] Hotkey matched: {action}")
             if action == "next":
                 target = (current_index + 1) % len(screens)
                 threading.Thread(target=switch_to, args=(target,), daemon=True).start()
