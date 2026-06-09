@@ -20,6 +20,27 @@ CREDENTIALS_PATH = Path(
 )
 USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage"
 
+# Cles dont la VALEUR est sensible (token/secret) : on ne montre jamais le contenu.
+SECRET_HINTS = ("token", "secret", "key", "password", "refresh")
+
+
+def redacted_skeleton(obj, indent=2):
+    """Affiche la structure JSON (cles + types) en masquant toute valeur sensible."""
+    pad = " " * indent
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                print(f"{pad}{k}:")
+                redacted_skeleton(v, indent + 2)
+            elif isinstance(v, str) and any(h in k.lower() for h in SECRET_HINTS):
+                print(f"{pad}{k}: <chaine masquee, longueur {len(v)}>")
+            else:
+                print(f"{pad}{k}: {v!r}")
+    elif isinstance(obj, list):
+        print(f"{pad}[liste de {len(obj)} element(s)]")
+        if obj:
+            redacted_skeleton(obj[0], indent + 2)
+
 
 def main() -> int:
     print("=" * 60)
@@ -37,25 +58,36 @@ def main() -> int:
         print("    -> Sinon, definissez la variable CLAUDE_CREDENTIALS vers le bon fichier.")
         return 1
 
-    # Lecture du token
+    # Lecture du fichier
     try:
         creds = json.loads(CREDENTIALS_PATH.read_text(encoding="utf-8"))
-        oauth = creds["claudeAiOauth"]
-        token = oauth["accessToken"]
-        print(f"\n[OK] accessToken trouve (longueur {len(token)}).")
-        exp = oauth.get("expiresAt")
-        if exp:
-            # expiresAt est en millisecondes
-            exp_dt = datetime.fromtimestamp(exp / 1000)
-            now = datetime.now()
-            etat = "EXPIRE" if exp_dt < now else "valide"
-            print(f"     expiration : {exp_dt}  ({etat}, maintenant {now})")
-            if exp_dt < now:
-                print("     -> Le token est EXPIRE. Lancez `claude` sur ce PC pour le rafraichir.")
     except Exception as e:
-        print(f"\n[X] Impossible de lire le token : {e}")
-        print("    Structure attendue : claudeAiOauth.accessToken")
+        print(f"\n[X] Le fichier n'est pas un JSON lisible : {e}")
         return 1
+
+    # Lecture du token (structure attendue : claudeAiOauth.accessToken)
+    oauth = creds.get("claudeAiOauth") if isinstance(creds, dict) else None
+    if not isinstance(oauth, dict) or "accessToken" not in oauth:
+        print("\n[X] Cle 'claudeAiOauth.accessToken' absente de ce fichier.")
+        print("    Structure reelle du fichier (valeurs sensibles masquees) :")
+        print("    ----------------------------------------------------------")
+        redacted_skeleton(creds, indent=4)
+        print("    ----------------------------------------------------------")
+        print("    -> Copiez-collez ces lignes : elles ne contiennent AUCUN secret")
+        print("       et permettent d'adapter la lecture des identifiants Windows.")
+        return 1
+
+    token = oauth["accessToken"]
+    print(f"\n[OK] accessToken trouve (longueur {len(token)}).")
+    exp = oauth.get("expiresAt")
+    if exp:
+        # expiresAt est en millisecondes
+        exp_dt = datetime.fromtimestamp(exp / 1000)
+        now = datetime.now()
+        etat = "EXPIRE" if exp_dt < now else "valide"
+        print(f"     expiration : {exp_dt}  ({etat}, maintenant {now})")
+        if exp_dt < now:
+            print("     -> Le token est EXPIRE. Lancez `claude` sur ce PC pour le rafraichir.")
 
     # Appel API
     try:
