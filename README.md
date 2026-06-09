@@ -235,6 +235,23 @@ journalctl -u turing-smart-screen.service -f         # follow logs
 
 ---
 
+### Running at login (Windows)
+
+Scripts are provided in the [`windows/`](windows/) folder to start the
+multi-screen manager automatically at Windows session login, with no visible
+window. See [`windows/README.md`](windows/README.md) for full instructions.
+
+Quick start (Python must be installed with **"Add Python to PATH"**):
+
+1. Double-click `windows\install-deps.bat` to install dependencies.
+2. Double-click `windows\start.bat` to test (console window for debugging).
+3. Right-click `windows\install-autostart.ps1` → **Run with PowerShell** to
+   register autostart (creates a shortcut in `shell:startup`).
+
+To remove autostart, run `windows\uninstall-autostart.ps1`.
+
+---
+
 ### Additional dependencies
 
 On top of the base project requirements:
