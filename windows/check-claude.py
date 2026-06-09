@@ -109,23 +109,23 @@ def main() -> int:
     print(f"  le fichier existe ?  : {CREDENTIALS_PATH.exists()}")
 
     oauth = None
+    source = None
 
-    # 0) Token longue duree fourni par CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`)
-    env_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
-    if env_token:
-        print("\n[OK] Token fourni par CLAUDE_CODE_OAUTH_TOKEN.")
-        oauth = {"accessToken": env_token}
+    # On prefere le token d'abonnement (scope user:profile requis par l'API usage).
+    # Le token CLAUDE_CODE_OAUTH_TOKEN (setup-token) n'a que le scope inference
+    # et renvoie 403 sur cet endpoint : on ne l'essaie qu'en dernier recours.
 
     # 1) Dans le fichier .credentials.json
-    if oauth is None and CREDENTIALS_PATH.exists():
+    if CREDENTIALS_PATH.exists():
         try:
             creds = json.loads(CREDENTIALS_PATH.read_text(encoding="utf-8"))
             oauth = find_oauth(creds)
             if oauth:
-                print("\n[OK] Token Claude trouve dans le fichier .credentials.json.")
+                source = "fichier .credentials.json"
+                print("\n[OK] Token d'abonnement trouve dans le fichier .credentials.json.")
             else:
                 print("\n[i] Pas de 'claudeAiOauth' dans le fichier")
-                print("    (normal sous Windows : il ne contient que les tokens MCP des plugins).")
+                print("    (il ne contient que les tokens MCP des plugins).")
         except Exception as e:
             print(f"\n[X] Fichier illisible (JSON invalide) : {e}")
 
@@ -133,15 +133,28 @@ def main() -> int:
     if not oauth and sys.platform == "win32":
         print("\nRecherche dans le Gestionnaire d'identifiants Windows...")
         oauth = search_windows_credential_manager()
+        if oauth:
+            source = "Gestionnaire d'identifiants Windows"
+
+    # 3) En dernier recours, CLAUDE_CODE_OAUTH_TOKEN (setup-token, scope inference)
+    if not oauth:
+        env_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+        if env_token:
+            print("\n[!] Repli sur CLAUDE_CODE_OAUTH_TOKEN (setup-token).")
+            print("    Attention : ce token a le scope 'inference' et echoue (403)")
+            print("    sur l'API usage qui exige le scope 'user:profile'.")
+            oauth = {"accessToken": env_token}
+            source = "CLAUDE_CODE_OAUTH_TOKEN (setup-token)"
 
     if not oauth:
-        print("\n[X] Aucun token Claude trouve.")
-        print("    Solution recommandee (token dedie, supporte) :")
-        print("      1) dans un terminal : claude setup-token")
-        print("      2) copiez le token affiche (sk-ant-oat01-...)")
-        print('      3) setx CLAUDE_CODE_OAUTH_TOKEN "sk-ant-oat01-..."')
-        print("      4) FERMEZ et rouvrez le terminal, puis relancez ce diagnostic.")
+        print("\n[X] Aucun token d'abonnement Claude trouve.")
+        print("    -> Faites un LOGIN INTERACTIF (pas setup-token) :")
+        print("       lancez `claude` dans un terminal et connectez-vous avec")
+        print("       votre abonnement Claude (Pro/Max). Cela ecrit le bloc")
+        print("       'claudeAiOauth' (scope user:profile) dans .credentials.json.")
         return 1
+
+    print(f"     source : {source}")
 
     token = oauth["accessToken"]
     print(f"     accessToken trouve (longueur {len(token)}).")
@@ -173,12 +186,21 @@ def main() -> int:
         body = resp.text
         print("  Corps :")
         print("  " + (body[:2000] if body else "(vide)"))
+        if resp.status_code == 403 and "user:profile" in body:
+            print("\n[X] Token au mauvais scope (403 'user:profile' requis).")
+            print("    C'est le cas du token `claude setup-token` (scope inference).")
+            print("    -> Faites un LOGIN INTERACTIF a la place : lancez `claude` et")
+            print("       connectez-vous avec votre abonnement (Pro/Max). Supprimez")
+            print("       ensuite la variable CLAUDE_CODE_OAUTH_TOKEN :")
+            print('         setx CLAUDE_CODE_OAUTH_TOKEN ""')
+            return 1
         resp.raise_for_status()
         print("\n[OK] L'API renvoie des donnees. L'ecran Claude devrait s'afficher.")
         return 0
     except Exception as e:
         print(f"\n[X] Echec de l'appel API : {e}")
-        print("    - HTTP 401 -> token invalide/expire : relancez `claude`.")
+        print("    - HTTP 401 -> token invalide/expire : refaites le login `claude`.")
+        print("    - HTTP 403 -> mauvais scope : login interactif `claude` requis.")
         print("    - timeout / erreur reseau -> connexion / proxy / pare-feu.")
         return 1
 

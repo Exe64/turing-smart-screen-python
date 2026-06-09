@@ -139,13 +139,17 @@ def _oauth_from_windows_credential_manager() -> Optional[dict]:
 
 
 def get_claude_oauth() -> Optional[dict]:
-    """Return the Claude OAuth block, looking (in order) at the
-    CLAUDE_CODE_OAUTH_TOKEN env var, the credentials file, and on Windows the
-    Credential Manager. Returns None if not found."""
+    """Return the Claude OAuth block.
+
+    The subscription-login token (credentials file / Windows Credential Manager)
+    is preferred because it carries the 'user:profile' scope required by the
+    usage endpoint. The CLAUDE_CODE_OAUTH_TOKEN env var (from `claude
+    setup-token`) is only an inference-scoped fallback and does not work with the
+    usage API, so it is tried last."""
     return (
-        _oauth_from_env()
-        or _oauth_from_file()
+        _oauth_from_file()
         or _oauth_from_windows_credential_manager()
+        or _oauth_from_env()
     )
 
 
