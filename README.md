@@ -245,10 +245,15 @@ Quick start (Python must be installed with **"Add Python to PATH"**):
 
 1. Double-click `windows\install-deps.bat` to install dependencies.
 2. Double-click `windows\start.bat` to test (console window for debugging).
-3. Right-click `windows\install-autostart.ps1` → **Run with PowerShell** to
-   register autostart (creates a shortcut in `shell:startup`).
-
-To remove autostart, run `windows\uninstall-autostart.ps1`.
+3. Register autostart:
+   - **With admin rights (recommended)** — required if the monitor only works
+     when run as administrator (hardware sensors): right-click
+     `windows\install-autostart-admin.ps1` → **Run with PowerShell**. Creates a
+     scheduled task that runs at logon with highest privileges (no UAC prompt
+     at login). Remove with `windows\uninstall-autostart-admin.ps1`.
+   - **Without admin rights** — right-click `windows\install-autostart.ps1` →
+     **Run with PowerShell** (shortcut in `shell:startup`). Remove with
+     `windows\uninstall-autostart.ps1`.
 
 ---
 
