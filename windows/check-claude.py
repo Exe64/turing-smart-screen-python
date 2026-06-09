@@ -20,9 +20,17 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-CREDENTIALS_PATH = Path(
-    os.environ.get("CLAUDE_CREDENTIALS", Path.home() / ".claude" / ".credentials.json")
-)
+def _resolve_credentials_path() -> Path:
+    explicit = os.environ.get("CLAUDE_CREDENTIALS")
+    if explicit:
+        return Path(explicit)
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    if config_dir:
+        return Path(config_dir) / ".credentials.json"
+    return Path.home() / ".claude" / ".credentials.json"
+
+
+CREDENTIALS_PATH = _resolve_credentials_path()
 USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage"
 
 
@@ -58,8 +66,9 @@ def search_windows_credential_manager():
         return None
 
     claude_entries = [c for c in entries if "claude" in (c.get("TargetName") or "").lower()]
-    print(f"    {len(entries)} identifiant(s) au total, {len(claude_entries)} contenant 'claude' :")
-    for c in claude_entries:
+    print(f"    {len(entries)} identifiant(s) au total, {len(claude_entries)} contenant 'claude'.")
+    print("    Liste complete des noms (TargetName) pour reperage :")
+    for c in entries:
         print(f"      - {c.get('TargetName')}")
 
     for c in claude_entries:
@@ -91,14 +100,24 @@ def main() -> int:
     print("=" * 60)
     print(" Diagnostic ecran Claude Code Usage")
     print("=" * 60)
-    print(f"Fichier d'identifiants : {CREDENTIALS_PATH}")
-    print(f"  variable CLAUDE_CREDENTIALS : {os.environ.get('CLAUDE_CREDENTIALS', '(non definie)')}")
-    print(f"  le fichier existe ?         : {CREDENTIALS_PATH.exists()}")
+    print("Variables d'environnement :")
+    for var in ("CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CREDENTIALS", "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY"):
+        val = os.environ.get(var)
+        shown = "(non definie)" if not val else f"definie (longueur {len(val)})"
+        print(f"  {var} : {shown}")
+    print(f"\nFichier d'identifiants : {CREDENTIALS_PATH}")
+    print(f"  le fichier existe ?  : {CREDENTIALS_PATH.exists()}")
 
     oauth = None
 
+    # 0) Token longue duree fourni par CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`)
+    env_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+    if env_token:
+        print("\n[OK] Token fourni par CLAUDE_CODE_OAUTH_TOKEN.")
+        oauth = {"accessToken": env_token}
+
     # 1) Dans le fichier .credentials.json
-    if CREDENTIALS_PATH.exists():
+    if oauth is None and CREDENTIALS_PATH.exists():
         try:
             creds = json.loads(CREDENTIALS_PATH.read_text(encoding="utf-8"))
             oauth = find_oauth(creds)
@@ -116,9 +135,12 @@ def main() -> int:
         oauth = search_windows_credential_manager()
 
     if not oauth:
-        print("\n[X] Aucun token Claude (claudeAiOauth.accessToken) trouve.")
-        print("    -> Etes-vous connecte a Claude Code sur CE PC ?")
-        print("       Lancez `claude` une fois pour vous connecter.")
+        print("\n[X] Aucun token Claude trouve.")
+        print("    Solution recommandee (token dedie, supporte) :")
+        print("      1) dans un terminal : claude setup-token")
+        print("      2) copiez le token affiche (sk-ant-oat01-...)")
+        print('      3) setx CLAUDE_CODE_OAUTH_TOKEN "sk-ant-oat01-..."')
+        print("      4) FERMEZ et rouvrez le terminal, puis relancez ce diagnostic.")
         return 1
 
     token = oauth["accessToken"]

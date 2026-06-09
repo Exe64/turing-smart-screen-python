@@ -97,9 +97,13 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
   `%USERPROFILE%\.claude\.credentials.json` ne contient que les tokens MCP des
   plugins). L'écran le lit automatiquement aux deux endroits.
   **Si cet écran reste vide**, lancez `windows\check-claude.bat` : il affiche la
-  cause réelle (token introuvable, expiré, erreur API…). Le plus souvent, il faut
-  être **connecté à Claude Code sur ce PC** (lancez `claude` une fois). Vous
-  pouvez aussi forcer un emplacement avec la variable `CLAUDE_CREDENTIALS`.
+  cause réelle (token introuvable, expiré, erreur API…).
+  Méthode la plus fiable (token dédié, supportée par Claude Code) :
+  1. `claude setup-token` dans un terminal,
+  2. `setx CLAUDE_CODE_OAUTH_TOKEN "sk-ant-oat01-..."` (copiez le token affiché),
+  3. fermez/rouvrez le terminal — le moniteur lira ce token automatiquement.
+  Le token peut aussi venir de `%USERPROFILE%\.claude\.credentials.json`
+  (`claudeAiOauth`), de `CLAUDE_CONFIG_DIR`, ou de `CLAUDE_CREDENTIALS`.
 - **Écran par défaut** : c'est le **premier** de la liste `screens:` dans
   `multiscreen.yaml`. Réordonnez la liste pour changer celui affiché au démarrage.
 - **Écrans personnalisés** : ajoutez vos écrans et raccourcis clavier dans
