@@ -79,6 +79,7 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
 |---------|------|
 | `install-deps.bat` | Installe les dépendances (`requirements.txt` + `pynput`) |
 | `start.bat` | Lance le programme **avec** console (test / débogage) |
+| `check-claude.bat` | Diagnostic de l'écran Claude (pourquoi il est vide) |
 | `run-hidden.vbs` | Lance le programme **sans** fenêtre (utilisé par l'autostart) |
 | `install-autostart-admin.ps1` | **(A)** Tâche planifiée au logon, droits admin |
 | `uninstall-autostart-admin.ps1` | Supprime la tâche planifiée |
@@ -94,6 +95,12 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
 - **Usage Claude Code** : l'écran « Claude Code Usage » lit vos identifiants dans
   `%USERPROFILE%\.claude\.credentials.json`. Si vos credentials sont ailleurs,
   définissez la variable d'environnement `CLAUDE_CREDENTIALS`.
+  **Si cet écran reste vide**, lancez `windows\check-claude.bat` : il affiche la
+  cause réelle (fichier introuvable, token expiré, erreur API…). Le plus souvent,
+  il faut être **connecté à Claude Code sur ce PC** (lancez `claude` une fois pour
+  créer/rafraîchir le fichier d'identifiants).
+- **Écran par défaut** : c'est le **premier** de la liste `screens:` dans
+  `multiscreen.yaml`. Réordonnez la liste pour changer celui affiché au démarrage.
 - **Écrans personnalisés** : ajoutez vos écrans et raccourcis clavier dans
   `multiscreen.yaml` (voir les commentaires dans ce fichier).
 - Le dossier *Démarrage* est accessible via `Win + R` → `shell:startup`.

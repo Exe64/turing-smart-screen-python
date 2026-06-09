@@ -2,11 +2,11 @@
 # Define your screens and keybindings here
 
 screens:
-  - name: "System Monitor"
-    theme: "3.5inchTheme2"
-
   - name: "Claude Code Usage"
     theme: "ClaudeCode"
+
+  - name: "System Monitor"
+    theme: "3.5inchTheme2"
 
 # Keybindings use "+" to separate keys
 # Available modifiers: ctrl, shift, alt
