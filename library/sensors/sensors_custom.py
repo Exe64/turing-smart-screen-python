@@ -27,6 +27,7 @@ import logging
 import math
 import os
 import platform
+import sys
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -39,6 +40,86 @@ logger = logging.getLogger(__name__)
 
 CREDENTIALS_PATH = Path(os.environ.get("CLAUDE_CREDENTIALS", Path.home() / ".claude" / ".credentials.json"))
 USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage"
+
+
+def _find_oauth(obj) -> Optional[dict]:
+    """Recursively look for a Claude OAuth block (claudeAiOauth.accessToken)."""
+    if isinstance(obj, dict):
+        oauth = obj.get("claudeAiOauth")
+        if isinstance(oauth, dict) and oauth.get("accessToken"):
+            return oauth
+        for value in obj.values():
+            found = _find_oauth(value)
+            if found:
+                return found
+    elif isinstance(obj, list):
+        for value in obj:
+            found = _find_oauth(value)
+            if found:
+                return found
+    return None
+
+
+def _oauth_from_file() -> Optional[dict]:
+    """Read the Claude OAuth block from the .credentials.json file (Linux/macOS)."""
+    try:
+        with open(CREDENTIALS_PATH) as f:
+            return _find_oauth(json.load(f))
+    except Exception:
+        return None
+
+
+def _oauth_from_windows_credential_manager() -> Optional[dict]:
+    """Read the Claude OAuth block from the Windows Credential Manager.
+
+    On Windows, Claude Code stores its primary credentials in the Credential
+    Manager (the .credentials.json file only holds MCP plugin tokens).
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        import win32cred  # provided by pywin32 (Windows requirement)
+    except ImportError:
+        logger.warning("pywin32 not installed: cannot read Windows Credential Manager")
+        return None
+    try:
+        entries = win32cred.CredEnumerate(None, 0)
+    except Exception as e:
+        logger.warning("Failed to enumerate Windows credentials: %s", e)
+        return None
+    for cred in entries:
+        target = (cred.get("TargetName") or "").lower()
+        if "claude" not in target:
+            continue
+        blob = cred.get("CredentialBlob")
+        if not blob:
+            continue
+        text = None
+        if isinstance(blob, bytes):
+            for encoding in ("utf-16-le", "utf-8"):
+                try:
+                    text = blob.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+        elif isinstance(blob, str):
+            text = blob
+        if not text:
+            continue
+        try:
+            data = json.loads(text)
+        except Exception:
+            continue
+        oauth = _find_oauth(data)
+        if oauth:
+            return oauth
+    return None
+
+
+def get_claude_oauth() -> Optional[dict]:
+    """Return the Claude OAuth block from the credentials file or, on Windows,
+    from the Credential Manager. Returns None if not found."""
+    return _oauth_from_file() or _oauth_from_windows_credential_manager()
 
 
 class _ClaudeUsageCache:
@@ -54,9 +135,10 @@ class _ClaudeUsageCache:
         if cls._data is not None and (now - cls._last_fetch) < cls._ttl:
             return cls._data
         try:
-            with open(CREDENTIALS_PATH) as f:
-                creds = json.load(f)
-            token = creds["claudeAiOauth"]["accessToken"]
+            oauth = get_claude_oauth()
+            if not oauth:
+                raise RuntimeError("Claude OAuth credentials not found")
+            token = oauth["accessToken"]
             resp = requests.get(
                 USAGE_API_URL,
                 headers={"Authorization": f"Bearer {token}"},

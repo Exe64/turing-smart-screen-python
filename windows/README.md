@@ -92,13 +92,14 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall-autostart.ps1
   `DISPLAY_REVERSE: true/false` selon l'orientation de votre écran.
 - **Port COM** : par défaut `config.yaml` utilise `COM_PORT: "AUTO"`. Si l'écran
   n'est pas détecté, renseignez le port manuellement (ex. `COM_PORT: "COM3"`).
-- **Usage Claude Code** : l'écran « Claude Code Usage » lit vos identifiants dans
-  `%USERPROFILE%\.claude\.credentials.json`. Si vos credentials sont ailleurs,
-  définissez la variable d'environnement `CLAUDE_CREDENTIALS`.
+- **Usage Claude Code** : sous Windows, le token principal de Claude Code est
+  stocké dans le **Gestionnaire d'identifiants Windows** (le fichier
+  `%USERPROFILE%\.claude\.credentials.json` ne contient que les tokens MCP des
+  plugins). L'écran le lit automatiquement aux deux endroits.
   **Si cet écran reste vide**, lancez `windows\check-claude.bat` : il affiche la
-  cause réelle (fichier introuvable, token expiré, erreur API…). Le plus souvent,
-  il faut être **connecté à Claude Code sur ce PC** (lancez `claude` une fois pour
-  créer/rafraîchir le fichier d'identifiants).
+  cause réelle (token introuvable, expiré, erreur API…). Le plus souvent, il faut
+  être **connecté à Claude Code sur ce PC** (lancez `claude` une fois). Vous
+  pouvez aussi forcer un emplacement avec la variable `CLAUDE_CREDENTIALS`.
 - **Écran par défaut** : c'est le **premier** de la liste `screens:` dans
   `multiscreen.yaml`. Réordonnez la liste pour changer celui affiché au démarrage.
 - **Écrans personnalisés** : ajoutez vos écrans et raccourcis clavier dans
