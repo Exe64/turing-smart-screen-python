@@ -11,16 +11,25 @@ screens:
 # Keybindings use "+" to separate keys
 # Available modifiers: ctrl, shift, alt
 # Available keys: home, end, page_up, page_down, insert, delete,
-#   f1-f12, up, down, left, right, space, tab, enter, esc,
+#   f1-f20, up, down, left, right, space, tab, enter, esc,
 #   or any single character (a, b, 1, 2, etc.)
 #
 # Actions:
 #   next      - switch to the next screen in the list
 #   prev      - switch to the previous screen in the list
 #   screen_N  - switch directly to screen at index N (0-based)
+#
+# Logitech G-keys (G915 etc.): the G1..G5 keys are NOT standard keyboard keys,
+# they are handled by Logitech G HUB and send nothing by default. In G HUB,
+# assign each G-key to emit a keystroke F13..F20 (no conflicts), then bind here.
+# Use windows\keytest.bat to see what your keys actually send.
 
 keybindings:
   next: "ctrl + shift + end"
   prev: "ctrl + shift + home"
-  # screen_0: "ctrl + shift + f1"
-  # screen_1: "ctrl + shift + f2"
+  # Direct screen selection (e.g. mapped to G915 G-keys via G HUB -> F13..F20):
+  # screen_0: "f13"
+  # screen_1: "f14"
+  # screen_2: "f15"
+  # screen_3: "f16"
+  # screen_4: "f17"
