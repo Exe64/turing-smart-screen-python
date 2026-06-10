@@ -353,6 +353,9 @@ class ClaudeSonnetUsage(CustomDataSource):
         return self.value
 
     def as_string(self) -> str:
+        data = _ClaudeUsageCache.get()
+        if not (data and data.get("seven_day_sonnet")):
+            return "  N/A "
         return f'{self.value:>5.1f}%'
 
     def last_values(self) -> List[float]:
