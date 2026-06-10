@@ -299,7 +299,7 @@ class ClaudeFiveHourReset(CustomDataSource):
                     return f'Reset {dt.strftime("%H:%M")}'
                 except Exception:
                     pass
-        return ""
+        return "--:--"
 
     def last_values(self) -> List[float]:
         pass
@@ -338,7 +338,7 @@ class ClaudeWeeklyReset(CustomDataSource):
                     return f'Reset {dt.strftime("%a %d")}'
                 except Exception:
                     pass
-        return ""
+        return "---"
 
     def last_values(self) -> List[float]:
         pass
