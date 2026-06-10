@@ -295,7 +295,7 @@ class ClaudeFiveHourReset(CustomDataSource):
             raw = data["five_hour"].get("resets_at", "")
             if raw:
                 try:
-                    dt = datetime.fromisoformat(raw)
+                    dt = datetime.fromisoformat(raw).astimezone()
                     return f'Reset {dt.strftime("%H:%M")}'
                 except Exception:
                     pass
@@ -334,7 +334,7 @@ class ClaudeWeeklyReset(CustomDataSource):
             raw = data["seven_day"].get("resets_at", "")
             if raw:
                 try:
-                    dt = datetime.fromisoformat(raw)
+                    dt = datetime.fromisoformat(raw).astimezone()
                     return f'Reset {dt.strftime("%a %d")}'
                 except Exception:
                     pass
