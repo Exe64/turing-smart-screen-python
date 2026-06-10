@@ -154,11 +154,11 @@ def get_claude_oauth() -> Optional[dict]:
 
 
 class _ClaudeUsageCache:
-    """Shared cache for Claude API usage data, refreshed at most every 30 seconds."""
+    """Shared cache for Claude API usage data, refreshed at most every 5 minutes."""
 
     _data: Optional[dict] = None
     _last_fetch: float = 0
-    _ttl: float = 30
+    _ttl: float = 300
 
     @classmethod
     def get(cls) -> Optional[dict]:
