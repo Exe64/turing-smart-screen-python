@@ -52,6 +52,48 @@ def _resolve_credentials_path() -> Path:
 
 CREDENTIALS_PATH = _resolve_credentials_path()
 USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage"
+TOKEN_REFRESH_URL = "https://console.anthropic.com/v1/oauth/token"
+# Claude Code's public OAuth client id, used for the refresh_token grant
+OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+
+
+def _refresh_token(oauth: dict) -> Optional[dict]:
+    """Refresh an expired access token using the refresh token, and persist the
+    new tokens back to the credentials file so Claude Code stays in sync."""
+    refresh = oauth.get("refreshToken")
+    if not refresh:
+        return None
+    try:
+        resp = requests.post(
+            TOKEN_REFRESH_URL,
+            json={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh,
+                "client_id": OAUTH_CLIENT_ID,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        oauth["accessToken"] = data["access_token"]
+        if data.get("refresh_token"):
+            oauth["refreshToken"] = data["refresh_token"]
+        if data.get("expires_in"):
+            oauth["expiresAt"] = int((time.time() + data["expires_in"]) * 1000)
+        try:
+            with open(CREDENTIALS_PATH) as f:
+                creds = json.load(f)
+            if "claudeAiOauth" in creds:
+                creds["claudeAiOauth"].update(oauth)
+                with open(CREDENTIALS_PATH, "w") as f:
+                    json.dump(creds, f)
+        except Exception as e:
+            logger.warning("Could not persist refreshed token: %s", e)
+        logger.info("Claude OAuth token refreshed")
+        return oauth
+    except Exception as e:
+        logger.warning("Failed to refresh Claude OAuth token: %s", e)
+        return None
 
 
 def _oauth_from_env() -> Optional[dict]:
@@ -154,32 +196,56 @@ def get_claude_oauth() -> Optional[dict]:
 
 
 class _ClaudeUsageCache:
-    """Shared cache for Claude API usage data, refreshed at most every minute."""
+    """Shared cache for Claude API usage data, refreshed at most every minute.
+
+    On error, an exponential backoff (up to 30 minutes) prevents hammering the
+    API and triggering Cloudflare rate limiting. A 401 triggers one token
+    refresh attempt using the stored refresh token."""
 
     _data: Optional[dict] = None
     _last_fetch: float = 0
     _ttl: float = 60
+    _backoff: float = 0
+    _next_retry: float = 0
+
+    @classmethod
+    def _fetch(cls, token: str) -> "requests.Response":
+        return requests.get(
+            USAGE_API_URL,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
 
     @classmethod
     def get(cls) -> Optional[dict]:
         now = time.time()
         if cls._data is not None and (now - cls._last_fetch) < cls._ttl:
             return cls._data
+        if now < cls._next_retry:
+            return cls._data if cls._data is not None else {}
         try:
             oauth = get_claude_oauth()
             if not oauth:
                 raise RuntimeError("Claude OAuth credentials not found")
-            token = oauth["accessToken"]
-            resp = requests.get(
-                USAGE_API_URL,
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=10,
-            )
+            resp = cls._fetch(oauth["accessToken"])
+            if resp.status_code == 401:
+                refreshed = _refresh_token(oauth)
+                if refreshed:
+                    resp = cls._fetch(refreshed["accessToken"])
+            if resp.status_code == 429:
+                retry_after = float(resp.headers.get("Retry-After", 300))
+                cls._next_retry = now + retry_after
+                logger.warning("Claude usage API rate limited, retry in %ds", retry_after)
+                return cls._data if cls._data is not None else {}
             resp.raise_for_status()
             cls._data = resp.json()
             cls._last_fetch = now
+            cls._backoff = 0
+            cls._next_retry = 0
         except Exception as e:
             logger.warning("Failed to fetch Claude usage: %s", e)
+            cls._backoff = min(max(cls._backoff * 2, 120), 1800)
+            cls._next_retry = now + cls._backoff
             if cls._data is None:
                 cls._data = {}
         return cls._data
