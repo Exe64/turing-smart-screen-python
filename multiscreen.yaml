@@ -8,6 +8,9 @@ screens:
   - name: "System Monitor"
     theme: "3.5inchTheme2"
 
+  - name: "Tarkov Quests"
+    theme: "Tarkov"
+
 # Keybindings use "+" to separate keys
 # Available modifiers: ctrl, shift, alt
 # Available keys: home, end, page_up, page_down, insert, delete,

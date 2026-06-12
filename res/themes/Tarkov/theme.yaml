@@ -1,0 +1,187 @@
+---
+author: "Tarkov Quest Tracker"
+
+display:
+  DISPLAY_SIZE: 3.5"
+  DISPLAY_ORIENTATION: portrait
+  DISPLAY_RGB_LED: 158, 134, 67
+
+static_images:
+  BACKGROUND:
+    PATH: background.png
+    X: 0
+    Y: 0
+    WIDTH: 320
+    HEIGHT: 480
+
+STATS:
+  CUSTOM:
+    INTERVAL: 60
+
+    TarkovLevel:
+      TEXT:
+        SHOW: True
+        X: 16
+        Y: 88
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 28
+        FONT_COLOR: 158, 134, 67
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 96
+        HEIGHT: 36
+
+    TarkovQuestProgress:
+      TEXT:
+        SHOW: True
+        X: 120
+        Y: 88
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 28
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 150
+        HEIGHT: 36
+      GRAPH:
+        SHOW: True
+        X: 17
+        Y: 131
+        WIDTH: 286
+        HEIGHT: 14
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 158, 134, 67
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 26, 29, 22
+
+    TarkovQuestCount:
+      TEXT:
+        SHOW: True
+        X: 180
+        Y: 167
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 13
+        FONT_COLOR: 120, 125, 110
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 124
+        HEIGHT: 16
+
+    TarkovQuest1:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 200
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest2:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 230
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest3:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 260
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest4:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 290
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest5:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 320
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest6:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 350
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest7:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 380
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+    TarkovQuest8:
+      TEXT:
+        SHOW: True
+        X: 12
+        Y: 410
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 300
+        HEIGHT: 18
+
+  DATE:
+    INTERVAL: 60
+    DAY:
+      TEXT:
+        SHOW: True
+        X: 100
+        Y: 450
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 13
+        FONT_COLOR: 120, 125, 110
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 120
+        HEIGHT: 18
+    HOUR:
+      TEXT:
+        SHOW: True
+        X: 230
+        Y: 450
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 13
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 70
+        HEIGHT: 18

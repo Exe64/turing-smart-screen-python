@@ -442,3 +442,231 @@ class ClaudeExtraUsage(CustomDataSource):
 
     def last_values(self) -> List[float]:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Escape from Tarkov quest tracking (TarkovTracker + tarkov.dev)
+# ---------------------------------------------------------------------------
+
+TARKOV_TOKEN_PATH = Path(__file__).resolve().parents[2] / "tarkov_token.txt"
+TARKOVTRACKER_API = "https://tarkovtracker.io/api/v2/progress"
+TARKOVDEV_API = "https://api.tarkov.dev/graphql"
+
+_TARKOVDEV_QUERY = """
+{
+  tasks {
+    id
+    name
+    minPlayerLevel
+    kappaRequired
+    trader { name }
+    taskRequirements { task { id } status }
+  }
+}
+"""
+
+
+def _tarkov_token() -> Optional[str]:
+    token = os.environ.get("TARKOV_TRACKER_TOKEN")
+    if token:
+        return token.strip()
+    try:
+        return TARKOV_TOKEN_PATH.read_text().strip()
+    except Exception:
+        return None
+
+
+class _TarkovCache:
+    """Shared cache: player progress from TarkovTracker, quest data from
+    tarkov.dev. Refreshed every 2 minutes, with error backoff."""
+
+    _tasks: Optional[dict] = None  # tarkov.dev task id -> task info (static, 1h TTL)
+    _tasks_fetch: float = 0
+    _progress: Optional[dict] = None
+    _progress_fetch: float = 0
+    _next_retry: float = 0
+    _available: Optional[list] = None
+
+    @classmethod
+    def _fetch_tasks(cls):
+        now = time.time()
+        if cls._tasks is not None and (now - cls._tasks_fetch) < 3600:
+            return
+        resp = requests.post(TARKOVDEV_API, json={"query": _TARKOVDEV_QUERY}, timeout=15)
+        resp.raise_for_status()
+        tasks = resp.json()["data"]["tasks"]
+        cls._tasks = {t["id"]: t for t in tasks}
+        cls._tasks_fetch = now
+
+    @classmethod
+    def _fetch_progress(cls):
+        token = _tarkov_token()
+        if not token:
+            raise RuntimeError("TarkovTracker token not found (tarkov_token.txt or TARKOV_TRACKER_TOKEN)")
+        resp = requests.get(
+            TARKOVTRACKER_API,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        cls._progress = resp.json().get("data", {})
+        cls._progress_fetch = time.time()
+
+    @classmethod
+    def get(cls) -> Optional[dict]:
+        now = time.time()
+        if cls._progress is not None and (now - cls._progress_fetch) < 120:
+            return cls._progress
+        if now < cls._next_retry:
+            return cls._progress
+        try:
+            cls._fetch_tasks()
+            cls._fetch_progress()
+            cls._available = None  # recompute on next access
+            cls._next_retry = 0
+        except Exception as e:
+            logger.warning("Failed to fetch Tarkov data: %s", e)
+            cls._next_retry = now + 300
+        return cls._progress
+
+    @classmethod
+    def available_quests(cls) -> list:
+        """Quests not completed whose prerequisites are met, sorted by trader."""
+        progress = cls.get()
+        if not progress or not cls._tasks:
+            return []
+        if cls._available is not None:
+            return cls._available
+        level = int(progress.get("playerLevel", 1) or 1)
+        done = {
+            t["id"]
+            for t in progress.get("tasksProgress", [])
+            if t.get("complete")
+        }
+        failed = {
+            t["id"]
+            for t in progress.get("tasksProgress", [])
+            if t.get("failed")
+        }
+        available = []
+        for tid, task in cls._tasks.items():
+            if tid in done or tid in failed:
+                continue
+            if int(task.get("minPlayerLevel") or 0) > level:
+                continue
+            reqs_ok = True
+            for req in task.get("taskRequirements") or []:
+                req_task = (req or {}).get("task") or {}
+                req_id = req_task.get("id")
+                statuses = req.get("status") or ["complete"]
+                if req_id and "complete" in statuses and req_id not in done:
+                    reqs_ok = False
+                    break
+            if reqs_ok:
+                available.append(task)
+        available.sort(key=lambda t: ((t.get("trader") or {}).get("name", ""), t["name"]))
+        cls._available = available
+        return available
+
+    @classmethod
+    def completed_count(cls) -> tuple:
+        progress = cls.get()
+        if not progress or not cls._tasks:
+            return 0, 0
+        done = sum(1 for t in progress.get("tasksProgress", []) if t.get("complete"))
+        return done, len(cls._tasks)
+
+
+class TarkovLevel(CustomDataSource):
+    def as_numeric(self) -> float:
+        progress = _TarkovCache.get()
+        self.value = float(progress.get("playerLevel", 0) or 0) if progress else 0.0
+        return self.value
+
+    def as_string(self) -> str:
+        return f'LVL {int(self.value):>2}'
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class TarkovQuestProgress(CustomDataSource):
+    def as_numeric(self) -> float:
+        done, total = _TarkovCache.completed_count()
+        self.done = done
+        self.total = total
+        return (done / total * 100) if total else 0.0
+
+    def as_string(self) -> str:
+        done, total = _TarkovCache.completed_count()
+        return f'{done:>3}/{total:<3}'
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class _TarkovQuestLine(CustomDataSource):
+    """Base class: displays the Nth available quest as 'Trader: Quest name'."""
+
+    index = 0
+    width = 30  # pad/truncate to fixed width to avoid ghosting
+
+    def as_numeric(self) -> float:
+        pass
+
+    def as_string(self) -> str:
+        quests = _TarkovCache.available_quests()
+        if self.index < len(quests):
+            task = quests[self.index]
+            trader = (task.get("trader") or {}).get("name", "?")[:7]
+            text = f'{trader}: {task["name"]}'
+        else:
+            text = ""
+        return text[: self.width].ljust(self.width)
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class TarkovQuest1(_TarkovQuestLine):
+    index = 0
+
+
+class TarkovQuest2(_TarkovQuestLine):
+    index = 1
+
+
+class TarkovQuest3(_TarkovQuestLine):
+    index = 2
+
+
+class TarkovQuest4(_TarkovQuestLine):
+    index = 3
+
+
+class TarkovQuest5(_TarkovQuestLine):
+    index = 4
+
+
+class TarkovQuest6(_TarkovQuestLine):
+    index = 5
+
+
+class TarkovQuest7(_TarkovQuestLine):
+    index = 6
+
+
+class TarkovQuest8(_TarkovQuestLine):
+    index = 7
+
+
+class TarkovQuestCount(CustomDataSource):
+    def as_numeric(self) -> float:
+        return float(len(_TarkovCache.available_quests()))
+
+    def as_string(self) -> str:
+        n = len(_TarkovCache.available_quests())
+        return f'{n:>2} disponibles'
+
+    def last_values(self) -> List[float]:
+        pass
