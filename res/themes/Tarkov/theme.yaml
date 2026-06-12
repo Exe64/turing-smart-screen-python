@@ -53,6 +53,18 @@ STATS:
         BAR_OUTLINE: False
         BACKGROUND_COLOR: 26, 29, 22
 
+    TarkovCurrentMap:
+      TEXT:
+        SHOW: True
+        X: 160
+        Y: 24
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 14
+        FONT_COLOR: 200, 200, 190
+        BACKGROUND_IMAGE: background.png
+        WIDTH: 150
+        HEIGHT: 18
+
     TarkovQuestCount:
       TEXT:
         SHOW: True

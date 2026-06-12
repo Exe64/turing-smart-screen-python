@@ -27,6 +27,7 @@ import logging
 import math
 import os
 import platform
+import re
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -461,9 +462,33 @@ _TARKOVDEV_QUERY = """
     kappaRequired
     trader { name }
     taskRequirements { task { id } status }
+    objectives { maps { name } }
   }
 }
 """
+
+# EFT log files, to detect the current raid map (configurable via env var)
+TARKOV_LOGS_DIR = Path(
+    os.environ.get("TARKOV_LOGS_DIR", r"C:\Battlestate Games\Escape from Tarkov\Logs")
+)
+
+# Internal location ids (as written in EFT logs) -> tarkov.dev map names
+_TARKOV_MAP_NAMES = {
+    "bigmap": "Customs",
+    "factory4_day": "Factory",
+    "factory4_night": "Night Factory",
+    "interchange": "Interchange",
+    "laboratory": "The Lab",
+    "lighthouse": "Lighthouse",
+    "rezervbase": "Reserve",
+    "sandbox": "Ground Zero",
+    "sandbox_high": "Ground Zero",
+    "shoreline": "Shoreline",
+    "tarkovstreets": "Streets of Tarkov",
+    "woods": "Woods",
+}
+
+_LOCATION_RE = re.compile(r"Location:\s*([A-Za-z0-9_]+)", re.IGNORECASE)
 
 
 def _tarkov_token() -> Optional[str]:
@@ -576,6 +601,59 @@ class _TarkovCache:
         done = sum(1 for t in progress.get("tasksProgress", []) if t.get("complete"))
         return done, len(cls._tasks)
 
+    _map_check: float = 0
+    _current_map: Optional[str] = None
+
+    @classmethod
+    def current_map(cls) -> Optional[str]:
+        """Detect the map of the current (or last) raid from EFT log files."""
+        now = time.time()
+        if (now - cls._map_check) < 15:
+            return cls._current_map
+        cls._map_check = now
+        try:
+            logs = list(TARKOV_LOGS_DIR.rglob("*application_*.log"))
+            if not logs:
+                cls._current_map = None
+                return None
+            latest = max(logs, key=lambda p: p.stat().st_mtime)
+            # Only the tail is needed; Location lines appear at raid start
+            with open(latest, "rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - 500_000))
+                tail = f.read().decode("utf-8", errors="replace")
+            matches = _LOCATION_RE.findall(tail)
+            if matches:
+                cls._current_map = _TARKOV_MAP_NAMES.get(matches[-1].lower())
+            else:
+                cls._current_map = None
+        except Exception as e:
+            logger.warning("Failed to detect Tarkov map: %s", e)
+            cls._current_map = None
+        return cls._current_map
+
+    @classmethod
+    def display_quests(cls) -> list:
+        """Available quests, filtered to the current map when one is detected.
+
+        Quests with at least one objective on the current map come first;
+        if no map is detected, all available quests are returned."""
+        quests = cls.available_quests()
+        current = cls.current_map()
+        if not current:
+            return quests
+        on_map = []
+        for task in quests:
+            maps = set()
+            for obj in task.get("objectives") or []:
+                for m in (obj or {}).get("maps") or []:
+                    maps.add(m.get("name"))
+            if not maps or current in maps:
+                # no map constraint = doable anywhere, keep it listed
+                on_map.append(task)
+        return on_map
+
 
 class TarkovLevel(CustomDataSource):
     def as_numeric(self) -> float:
@@ -615,7 +693,7 @@ class _TarkovQuestLine(CustomDataSource):
         pass
 
     def as_string(self) -> str:
-        quests = _TarkovCache.available_quests()
+        quests = _TarkovCache.display_quests()
         if self.index < len(quests):
             task = quests[self.index]
             trader = (task.get("trader") or {}).get("name", "?")[:7]
@@ -662,11 +740,24 @@ class TarkovQuest8(_TarkovQuestLine):
 
 class TarkovQuestCount(CustomDataSource):
     def as_numeric(self) -> float:
-        return float(len(_TarkovCache.available_quests()))
+        return float(len(_TarkovCache.display_quests()))
 
     def as_string(self) -> str:
-        n = len(_TarkovCache.available_quests())
+        n = len(_TarkovCache.display_quests())
         return f'{n:>2} disponibles'
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class TarkovCurrentMap(CustomDataSource):
+    def as_numeric(self) -> float:
+        pass
+
+    def as_string(self) -> str:
+        current = _TarkovCache.current_map()
+        text = current if current else "Toutes maps"
+        return text[:17].ljust(17)
 
     def last_values(self) -> List[float]:
         pass
