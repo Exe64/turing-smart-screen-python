@@ -31,7 +31,7 @@ STATS:
       GRAPH:
         SHOW: True
         X: 21
-        Y: 163
+        Y: 154
         WIDTH: 278
         HEIGHT: 18
         MIN_VALUE: 0
@@ -44,7 +44,7 @@ STATS:
       TEXT:
         SHOW: True
         X: 20
-        Y: 142
+        Y: 138
         FONT: roboto-mono/RobotoMono-Regular.ttf
         FONT_SIZE: 12
         FONT_COLOR: 120, 125, 140
@@ -66,7 +66,7 @@ STATS:
       GRAPH:
         SHOW: True
         X: 21
-        Y: 293
+        Y: 285
         WIDTH: 278
         HEIGHT: 18
         MIN_VALUE: 0
@@ -79,7 +79,7 @@ STATS:
       TEXT:
         SHOW: True
         X: 20
-        Y: 272
+        Y: 268
         FONT: roboto-mono/RobotoMono-Regular.ttf
         FONT_SIZE: 12
         FONT_COLOR: 120, 125, 140
@@ -87,7 +87,7 @@ STATS:
         WIDTH: 160
         HEIGHT: 16
 
-    ClaudeSonnetUsage:
+    ClaudeFableUsage:
       TEXT:
         SHOW: True
         X: 24
@@ -128,7 +128,7 @@ STATS:
       TEXT:
         SHOW: True
         X: 100
-        Y: 446
+        Y: 450
         FONT: roboto-mono/RobotoMono-Regular.ttf
         FONT_SIZE: 13
         FONT_COLOR: 120, 125, 140
@@ -139,7 +139,7 @@ STATS:
       TEXT:
         SHOW: True
         X: 220
-        Y: 446
+        Y: 450
         FONT: roboto-mono/RobotoMono-Bold.ttf
         FONT_SIZE: 13
         FONT_COLOR: 200, 200, 200

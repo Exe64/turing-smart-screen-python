@@ -445,6 +445,50 @@ class ClaudeExtraUsage(CustomDataSource):
         pass
 
 
+def _model_scoped_percent(data: Optional[dict], model_name: str) -> Optional[float]:
+    """Return the weekly utilization (%) for a model from the 'limits' array,
+    matched on scope.model.display_name. Returns None when no such entry
+    exists (i.e. the model has no scoped limit on this account)."""
+    if not data:
+        return None
+    for limit in data.get("limits") or []:
+        scope = (limit or {}).get("scope") or {}
+        model = (scope.get("model") or {}).get("display_name")
+        if model and model.lower() == model_name.lower():
+            return float(limit.get("percent", 0) or 0)
+    return None
+
+
+class _ClaudeModelUsage(CustomDataSource):
+    """Base class: weekly usage (%) for a specific model from limits[]."""
+
+    model_name = ""
+
+    def as_numeric(self) -> float:
+        data = _ClaudeUsageCache.get()
+        self.pct = _model_scoped_percent(data, self.model_name)
+        self.value = self.pct if self.pct is not None else 0.0
+        return self.value
+
+    def as_string(self) -> str:
+        data = _ClaudeUsageCache.get()
+        pct = _model_scoped_percent(data, self.model_name)
+        if pct is None:
+            return "  N/A "
+        return f'{pct:>5.1f}%'
+
+    def last_values(self) -> List[float]:
+        pass
+
+
+class ClaudeFableUsage(_ClaudeModelUsage):
+    model_name = "Fable"
+
+
+class ClaudeOpusUsage(_ClaudeModelUsage):
+    model_name = "Opus"
+
+
 # ---------------------------------------------------------------------------
 # Escape from Tarkov quest tracking (TarkovTracker + tarkov.dev)
 # ---------------------------------------------------------------------------
