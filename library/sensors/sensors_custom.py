@@ -200,14 +200,24 @@ class _ClaudeUsageCache:
     """Shared cache for Claude API usage data, refreshed at most every minute.
 
     On error, an exponential backoff (up to 30 minutes) prevents hammering the
-    API and triggering Cloudflare rate limiting. A 401 triggers one token
-    refresh attempt using the stored refresh token."""
+    API and triggering Cloudflare rate limiting. An expired token is refreshed
+    proactively (the usage API can answer 429 instead of 401 on an expired
+    token, which would bypass a refresh-on-401-only strategy). When the refresh
+    token itself is dead (invalid_grant), auth_expired() turns True so sensors
+    can show a re-login prompt instead of silent zeros."""
 
     _data: Optional[dict] = None
     _last_fetch: float = 0
     _ttl: float = 60
     _backoff: float = 0
     _next_retry: float = 0
+    _auth_expired: bool = False
+
+    @classmethod
+    def auth_expired(cls) -> bool:
+        """True when the stored credentials are dead and an interactive
+        `claude` login is required."""
+        return cls._auth_expired
 
     @classmethod
     def _fetch(cls, token: str) -> "requests.Response":
@@ -228,10 +238,24 @@ class _ClaudeUsageCache:
             oauth = get_claude_oauth()
             if not oauth:
                 raise RuntimeError("Claude OAuth credentials not found")
+            # Proactive refresh: never call the usage API with a token known to
+            # be expired, and don't rely on a 401 to trigger the refresh.
+            expires_at = oauth.get("expiresAt")
+            if expires_at and expires_at / 1000 <= now:
+                refreshed = _refresh_token(oauth)
+                if not refreshed:
+                    cls._auth_expired = True
+                    raise RuntimeError(
+                        "Claude OAuth token expired and refresh failed: "
+                        "run `claude` in a terminal and log in again"
+                    )
+                oauth = refreshed
             resp = cls._fetch(oauth["accessToken"])
             if resp.status_code == 401:
                 refreshed = _refresh_token(oauth)
-                if refreshed:
+                if not refreshed:
+                    cls._auth_expired = True
+                else:
                     resp = cls._fetch(refreshed["accessToken"])
             if resp.status_code == 429:
                 retry_after = float(resp.headers.get("Retry-After", 300))
@@ -243,10 +267,16 @@ class _ClaudeUsageCache:
             cls._last_fetch = now
             cls._backoff = 0
             cls._next_retry = 0
+            cls._auth_expired = False
         except Exception as e:
             logger.warning("Failed to fetch Claude usage: %s", e)
-            cls._backoff = min(max(cls._backoff * 2, 120), 1800)
-            cls._next_retry = now + cls._backoff
+            if cls._auth_expired:
+                # Fixed 5-minute retry so a re-login is picked up quickly
+                # (each retry only hits the cheap token refresh endpoint)
+                cls._next_retry = now + 300
+            else:
+                cls._backoff = min(max(cls._backoff * 2, 120), 1800)
+                cls._next_retry = now + cls._backoff
             if cls._data is None:
                 cls._data = {}
         return cls._data
@@ -346,6 +376,8 @@ class ClaudeFiveHourUsage(CustomDataSource):
         return self.value
 
     def as_string(self) -> str:
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN!"
         return f'{self.value:>5.1f}%'
 
     def last_values(self) -> List[float]:
@@ -358,6 +390,8 @@ class ClaudeFiveHourReset(CustomDataSource):
 
     def as_string(self) -> str:
         data = _ClaudeUsageCache.get()
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN !".ljust(11)
         if data and "five_hour" in data and data["five_hour"]:
             raw = data["five_hour"].get("resets_at", "")
             if raw:
@@ -366,7 +400,7 @@ class ClaudeFiveHourReset(CustomDataSource):
                     return f'Reset {dt.strftime("%H:%M")}'
                 except Exception:
                     pass
-        return "--:--"
+        return "--:--".ljust(11)
 
     def last_values(self) -> List[float]:
         pass
@@ -385,6 +419,8 @@ class ClaudeWeeklyUsage(CustomDataSource):
         return self.value
 
     def as_string(self) -> str:
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN!"
         return f'{self.value:>5.1f}%'
 
     def last_values(self) -> List[float]:
@@ -397,6 +433,8 @@ class ClaudeWeeklyReset(CustomDataSource):
 
     def as_string(self) -> str:
         data = _ClaudeUsageCache.get()
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN !".ljust(12)
         if data and "seven_day" in data and data["seven_day"]:
             raw = data["seven_day"].get("resets_at", "")
             if raw:
@@ -405,7 +443,7 @@ class ClaudeWeeklyReset(CustomDataSource):
                     return f'Reset {dt.strftime("%a %d")}'
                 except Exception:
                     pass
-        return "---"
+        return "---".ljust(12)
 
     def last_values(self) -> List[float]:
         pass
@@ -421,6 +459,8 @@ class ClaudeSonnetUsage(CustomDataSource):
 
     def as_string(self) -> str:
         data = _ClaudeUsageCache.get()
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN!"
         if not (data and data.get("seven_day_sonnet")):
             return "  N/A "
         return f'{self.value:>5.1f}%'
@@ -439,6 +479,8 @@ class ClaudeExtraUsage(CustomDataSource):
         return self.value
 
     def as_string(self) -> str:
+        if _ClaudeUsageCache.auth_expired():
+            return "  LOGIN!  "
         return f'{self.value:>6.2f} EUR'
 
     def last_values(self) -> List[float]:
@@ -472,6 +514,8 @@ class _ClaudeModelUsage(CustomDataSource):
 
     def as_string(self) -> str:
         data = _ClaudeUsageCache.get()
+        if _ClaudeUsageCache.auth_expired():
+            return "LOGIN!"
         pct = _model_scoped_percent(data, self.model_name)
         if pct is None:
             return "  N/A "
